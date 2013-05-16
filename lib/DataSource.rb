@@ -21,7 +21,7 @@ class DataSource
     ds_content['isc.RestDataSource.create('] = ''
     ds_content[');'] = ''
     #remove tab, newline tag \n \r \t etc
-    result = ds_content.gsub('/\r|\n|\t|>>|\/\//', '')
+    result = ds_content
     return JSON.parse(result)
   end
 =begin
@@ -81,20 +81,18 @@ private
       response.status = 0
       response.totalRow = objs_count      
     
-      @result = { :response => response } 
-      return @result 
+      return response 
     end
 =begin
   <summary>Add new item</summary>  
 =end     
     def add(request)      
       new_data = request.data
-      new_supplyitem = @model.create(new_data)
+      new_supplyitem = @model.create(new_data)	  
       response = DSResponse.new
       response.data = new_data
-      response.status = 0
-      @result = { :response => response }
-      return @result
+      response.status = 0      
+      return response
     end
 =begin
   <summary>Remove the selected item</summary>  
@@ -103,12 +101,11 @@ private
       data = request.data
       item_id = data['itemID']
       # remove the item
-      @model.destroy(item_id)
+      @model.destroy(item_id)	  
       response = DSResponse.new
       response.data = data
-      response.status = 0
-      @result = { :response => response }
-      return @result 
+      response.status = 0      
+      return response 
     end
 =begin
   <summary>Update the items</summary>  
@@ -124,7 +121,7 @@ private
       merged_data.delete('itemID')
       
       #update
-      @model.update(item_id, merged_data)      
+      @model.update(item_id, merged_data)      	  
       return nil
     end
 end

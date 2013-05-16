@@ -1,4 +1,5 @@
 class DSResponse
+	attr_accessor :data, :startRow, :endRow, :totalRow, :status  
 	@data = nil
 	@startRow = 0
 	@endRow = 0
