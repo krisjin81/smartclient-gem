@@ -56,32 +56,287 @@ class DataSource
   end
   
 private
+	def buildStandardCriteria(request, table_name)
+		query = 'SELECT * FROM ' + table_name + ' WHERE '
+		param = Array.new    
+		condition = '' 
+		request.data.each do |key, value|
+			condition += "#{key} LIKE ? AND "
+			param << "%" + value + "%" 
+		end
+		q = condition[0, condition.rindex('AND ')]
+		query += q
+		
+		order = ''
+		unless request.sortBy.nil?
+		  request.sortBy.each do |idx|
+			 if idx.index('-') === nil 
+				  order = " ORDER BY " + idx.to_s + " ASC"
+			 else
+				  order = " ORDER BY " + idx.to_s + " DESC"    
+			 end
+		  end
+		end
+		
+		query += order
+		temp = Array.new
+		temp << query    
+		temp.concat(param)
+		return temp 
+	end
+	
+	def buildAdvancedCriteria(request, table)
+		advancedCriteria = request.advancedCriteria
+		criteria_query = buildCriterion(advancedCriteria)		
+		query = "SELECT * FROM " + table.to_s + " WHERE " + criteria_query[:query] 
+		
+		# sort by
+		order = ''
+		unless request.sortBy.nil?
+		  request.sortBy.each do |idx|
+			 if idx.index('-') === nil 
+				  order = " ORDER BY " + idx.to_s + " ASC"
+			 else
+				  order = " ORDER BY " + idx.to_s + " DESC"    
+			 end
+		  end
+		end
+		query += order
+		
+		result = Array.new
+		result << query   
+		result.concat(criteria_query[:values])		
+		
+		Rails.logger.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
+			Rails.logger.info(result)
+		Rails.logger.info('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+		return result
+	end
+	
+	def buildCriterion(advancedCriteria)
+		criterias = advancedCriteria[:criteria]
+			
+		operator = advancedCriteria[:operator]
+		values = Array.new
+		result = ''
+		criterias.each do | c |  
+			if c.has_key?(:fieldName)
+				fn = c[:fieldName]
+			end
+			
+			if c.has_key?(:operator)
+				op = c[:operator]
+			end
+			
+			if c.has_key?(:value)
+				if c[:value] === true
+					val = 1
+				elsif c[:value] === false
+					val = 0
+				else
+					val = c[:value]
+				end
+			end
+			
+			if c.has_key?(:start)	
+				start = c[:start]
+			end
+			
+			if c.has_key?(:end)
+				_end = c[:end]
+			end
+			
+			if c.has_key?(:criteria)
+				criteria = c[:criteria]
+			else
+				criteria = nil
+			end
+			
+			if criteria == nil				
+				query = ''
+				case op
+					when 'equals'
+						query = "#{fn} = ?"; 
+						values << val
+						
+					when 'notEqual'
+						query = "#{fn} != ?"; 
+						values << val
+						
+					when 'iEquals'
+						query = "UPPER(#{fn}) = ?"						
+						values << "UPPER('#{val}')" 
+						
+					when 'iNotEqual'                            
+						query = "UPPER(#{fn}) != ?"
+						values << "UPPER('#{val}')"
+						
+					when 'greaterThan'
+						query = "#{fn} > ?"		
+						values << val
+						
+					when 'lessThan'
+						query = "#{fn} < ?"		
+						values << val
+						
+					when 'greaterOrEqual'
+						query = "#{fn} >= ?"		
+						values << val
+						
+					when 'lessOrEqual'
+						query = "#{fn} <= ?"; 
+						values << val
+						
+					when 'contains'
+						query = "#{fn} LIKE ?";  
+						values << "%#{val}%"
+						
+					when 'startsWith'
+						query = "#{fn} LIKE ?";  
+						values << "#{val}%"
+						
+					when 'endsWith'
+						query = "#{fn} LIKE ?";  
+						values << "%#{val}"
+						
+					when 'iContains'
+						query = "#{fn} LIKE ?";  
+						values << "%#{val}%"
+						
+					when 'iStartsWith'
+						query = "UPPER(#{fn}) LIKE ?" 
+						values << "UPPER('#{val}%')"
+						
+					when 'iEndsWith'
+						query = "UPPER(#{fn}) LIKE ?" 
+						values << "UPPER('%#{val}')"
+							
+					when 'notContains'
+						query = "#{fn} NOT LIKE ?" 
+						values << "%#{val}%"
+							
+					when 'notStartsWith'
+						query = "#{fn} NOT LIKE ?" 
+						values << "#{val}%"
+						
+					when 'notEndsWith'
+						query = "#{fn} NOT LIKE ?" 
+						values << "%#{val}"
+						
+					when 'iNotContains'
+						query = "UPPER(#{fn}) NOT LIKE ?" 
+						values << "UPPER('%#{val}%')"
+						
+					when 'iNotStartsWith'
+						query = "UPPER(#{fn}) NOT LIKE ?" 
+						values << "UPPER('#{val}%')"
+												
+					when 'iNotEndsWith'
+						query = "UPPER(#{fn}) NOT LIKE ?" 
+						values << "UPPER('%#{val}')"
+						
+					when 'isNull'
+						query = "#{fn} IS NULL"
+						
+					when 'notNull'
+						query = "#{fn} IS NOT NULL"
+						
+					when 'equalsField'
+						query = "#{fn} LIKE ?"
+						values << "CONCAT('#{val}', '%')"
+						
+					when 'iEqualsField'
+						query = "UPPER(#{fn}) LIKE ?"
+						values << "UPPER(CONCAT('#{val}', '%'))"
+						
+					when 'iNotEqualField'
+						query = "UPPER(#{fn}) NOT LIKE ?"
+						values << "UPPER(CONCAT('#{val}', '%'))"
+						
+					when 'notEqualField'
+						query = "#{fn} NOT LIKE ?" 
+						values << "CONCAT('#{val}', '%')"
+						
+					when 'greaterThanField'
+						query = "#{fn} > ?"
+						values << "CONCAT('#{val}', '%')"
+						
+					when 'lessThanField'
+						query = "#{fn} < ?"
+						values << "CONCAT('#{val}', '%')"
+						
+					when 'greaterOrEqualField'
+						query = "#{fn} >= ?"
+						values << "CONCAT('#{val}', '%')"
+						
+					when 'lessOrEqualField'
+						query = "#{fn} <= ?"
+						values << "CONCAT('#{val}', '%')"
+						
+					when 'iBetweenInclusive'
+						query = "#{fn} BETWEEM ? AND ?"
+						values << start
+						values << _end
+						
+					when 'betweenInclusive'
+						query = "#{fn} BETWEEM ? AND ?" 
+						values << start
+						values << _end
+						
+				end 	
+				result = result.to_s + " " + query.to_s + " " + operator.to_s + " " 
+			else
+				# build the list of subcriterias or criterions                    
+				temp = result
+				result1 = buildCriterion(c)
+				result = temp.to_s + "(" + result1[:query] + ") " + operator + " "
+				
+				result1[:values].each do | value |
+					values << value
+				end
+			end 
+		end 
+		
+		q = result[0, result.rindex(operator)]
+		
+		criteria_result = Hash.new
+		criteria_result[:query] = q
+		criteria_result[:values] = values
+		
+		return criteria_result 
+	end
 =begin
   <summary> get the item list from the table </summary>
   <note>Before this method is called, the filter method should define in the model of the projects.</note>  
 =end  
-  def fetch(request)      
-      unless request.data.empty?
-          # get the filter from the model                      
-          @obj_items = @model.filter(request) 
-      else
-          # get all supplyitems from the database
-          @obj_items = @model.find(:all) 
-      end 
+	def fetch(request)      
+		table_name = @model.table_name
+		data = request.data
+		# check the advanced cretira
+		unless request.advancedCriteria.nil?			
+			query = buildAdvancedCriteria(request, table_name)
+			@obj_items = @model.find_by_sql(query) 
+		else
+			unless request.data.empty?
+				query = buildStandardCriteria(request, table_name)
+				@obj_items = @model.find_by_sql(query) 
+			else
+				@obj_items = @model.find(:all) 
+			end
+		end		 
+		objs_count = @obj_items.count
+		# get the count of the obj_items      
+		endRow = (objs_count > 0)?objs_count - 1 : objs_count
 
-      objs_count = @obj_items.count
-      # get the count of the obj_items      
-      endRow = (objs_count > 0)?objs_count - 1 : objs_count
-      
-      # make the Response result object 
-      response = DSResponse.new
-      response.data = @obj_items
-      response.startRow = 0
-      response.endRow = endRow
-      response.status = 0
-      response.totalRow = objs_count      
-    
-      return response 
+		# make the Response result object 
+		response = DSResponse.new
+		response.data = @obj_items
+		response.startRow = 0
+		response.endRow = endRow
+		response.status = 0
+		response.totalRow = objs_count      
+
+		return response 
     end
 =begin
   <summary>Add new item</summary>  
@@ -122,6 +377,8 @@ private
       
       #update
       @model.update(item_id, merged_data)      	  
-      return nil
+	  response = DSResponse.new      
+      response.status = 0      
+      return response
     end
 end

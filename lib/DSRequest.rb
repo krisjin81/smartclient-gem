@@ -7,7 +7,7 @@ require 'DataSource'
   </summary> 
 =end
 class DSRequest
-    attr_accessor :dataSource, :operationType, :startRow, :endRow, :textMatchStyle, :data, :sortBy, :oldValues
+    attr_accessor :dataSource, :operationType, :startRow, :endRow, :textMatchStyle, :data, :sortBy, :oldValues, :advancedCriteria
     
     @dataSource = nil
     @operationType = nil
@@ -18,7 +18,7 @@ class DSRequest
     @data = nil             
     @sortBy = nil
     @oldValues = nil
-           
+    @advancedCriteria = nil       
     @@obj = nil      
     def initialize(data, model)
       @componentId = data[:componentId]
@@ -51,5 +51,9 @@ class DSRequest
         return ds.execute(self)
       end
     end
+	
+	def advancedCriteria=(value)
+	  @advancedCriteria = value
+	end
 end
 

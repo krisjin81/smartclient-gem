@@ -40,6 +40,20 @@ class RPCManager
   end  
 =begin
 	<summary>
+		Helper method to decide if request contains an advanced criteria or not
+    </summary>
+		<param name="req"></param>
+    <returns></returns>
+=end  
+	def check_advanced_criteria(data)	 
+		if data.include?(:_constructor)
+			return true
+		else
+			return false
+		end
+	end
+=begin
+	<summary>
 		Returns true if the request has transaction support
     </summary>
     <returns></returns>
@@ -85,8 +99,13 @@ class RPCManager
 		@model.transaction do 									
 			begin				
 				operations.each do |op|								
+					# parase advanced criterias, if any
+					advanced_criteria = parse_advanced_criterias(op)
 					
 					req = DSRequest.new(op, @model) 					
+					unless advanced_criteria == nil
+						req.advancedCriteria = advanced_criteria
+					end 
 					# execute the request and get the response
 					res = req.execute							 
 					if res == nil
@@ -135,5 +154,13 @@ class RPCManager
 			responses << res
 		end 
 		return responses
+	end
+	
+	def parse_advanced_criterias(operations)
+		data = operations[:data]			
+		if check_advanced_criteria(data)
+			return data
+		end
+		return nil		
 	end
 end

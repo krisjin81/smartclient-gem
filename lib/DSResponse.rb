@@ -24,6 +24,6 @@ class DSResponse
 
 	def status=(value)
 	  @status = value
-	end
+	end 
 end  
 
