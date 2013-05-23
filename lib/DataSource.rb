@@ -8,21 +8,10 @@ class DataSource
   attr_accessor :data_source
   @data_source = nil
   @model = nil   
-  def initialize(path, model)        
-    #@data_source = self.get_data(path)
+  @pk = nil
+  def initialize(path, model)            
     @model = model
-  end
-=begin
-  <summary> get the DataSource contents from the path and parse to JSON format </summary>  
-=end  
-  def get_data(path)
-    ds_content = File.read(path)
-    #remove the isc tag and the end tag
-    ds_content['isc.RestDataSource.create('] = ''
-    ds_content[');'] = ''
-    #remove tab, newline tag \n \r \t etc
-    result = ds_content
-    return JSON.parse(result)
+	@pk = @model.primary_key()	  
   end
 =begin
   <summary> get the field content by the filed name </summary>  
@@ -106,10 +95,7 @@ private
 		result = Array.new
 		result << query   
 		result.concat(criteria_query[:values])		
-		
-		Rails.logger.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>')
-			Rails.logger.info(result)
-		Rails.logger.info('<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<')
+	
 		return result
 	end
 	
@@ -342,8 +328,8 @@ private
   <summary>Add new item</summary>  
 =end     
     def add(request)      
-      new_data = request.data
-      new_supplyitem = @model.create(new_data)	  
+      new_data = request.data	 
+      @model.create(new_data)			
       response = DSResponse.new
       response.data = new_data
       response.status = 0      
@@ -353,12 +339,12 @@ private
   <summary>Remove the selected item</summary>  
 =end         
     def remove(request)      
-      data = request.data
-      item_id = data['itemID']
+      data = request.data      	  
+	  id = data[@pk]	  
       # remove the item
-      @model.destroy(item_id)	  
+      @model.destroy(id)	  
       response = DSResponse.new
-      response.data = data
+      response.data = nil
       response.status = 0      
       return response 
     end
@@ -370,13 +356,14 @@ private
       old_data = request.oldValues
       # get the date from the request object
       update_data = request.data
-      item_id = update_data['itemID']
+	  	  
+      new_id = update_data[@pk]
       # merge to hash objects      
       merged_data = old_data.merge!(update_data)      
-      merged_data.delete('itemID')
+      merged_data.delete(@pk)
       
       #update
-      @model.update(item_id, merged_data)      	  
+      @model.update(new_id, merged_data)      	  
 	  response = DSResponse.new      
       response.status = 0      
       return response

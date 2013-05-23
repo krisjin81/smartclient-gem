@@ -23,8 +23,7 @@ class RPCManager
     model: the object that is mapped to the table
   </params>
 =end
-  def initialize(request=nil, model=nil)    
-    @model = model		 
+  def initialize(request=nil)        
 	# if is not wrapped in a transaction then we'll wrap it to make unified handling of the request	
 	if !check_transaction(request)		
 		req_hash = HashWithIndifferentAccess.new
@@ -38,6 +37,10 @@ class RPCManager
 		@request = request
 	end	 
   end  
+  
+  def model=(model)
+	@model = model
+  end
 =begin
 	<summary>
 		Helper method to decide if request contains an advanced criteria or not
@@ -80,6 +83,19 @@ class RPCManager
   end
 =begin
 	<summary>
+		Select the model by the datasource
+    </summary>
+    <returns>Datasource name</returns>
+=end  
+	def get_datasource
+		if @request.include?(:transaction)
+			return @request[:transaction][:operations][0][:dataSource]
+		else
+			return @request[:dataSource]
+		end
+	end
+=begin
+	<summary>
 		Process the transaction request for which this RPCManager was created for
     </summary>
     <returns></returns>
@@ -92,16 +108,15 @@ class RPCManager
 		# fetch the operations
 		operations = transaction_request[:operations]
 		
-		queueFailed = false
 		# response list
 		res_list = Array.new			
 		# transaction progress
 		@model.transaction do 									
 			begin				
-				operations.each do |op|								
+				operations.each do |op|	 
 					# parase advanced criterias, if any
 					advanced_criteria = parse_advanced_criterias(op)
-					
+					 
 					req = DSRequest.new(op, @model) 					
 					unless advanced_criteria == nil
 						req.advancedCriteria = advanced_criteria
@@ -113,13 +128,10 @@ class RPCManager
 						res.status = -1
 					end
 					
-					# if request execution failed, mark the flag variable
-					if res.status == -1
-						queueFailed = true
-					end
+				
 						
 					# store the response for later
-					res_list << res	 
+					res_list << res	 					
 				end			
 			rescue ActiveRecord::RecordInvalid
 				# if it occurs exception
@@ -142,15 +154,13 @@ class RPCManager
 		# iterate over the responses and create a instance of an anonymous class which mimics the required json
 		responses = Array.new
 		
-		res_list.each do | response |
-			
+		res_list.each do | response |			
 			res = DSResponse.new
 			res.data = response.data			
 			res.startRow = response.startRow
 			res.endRow = response.endRow
 			res.totalRow = response.totalRow
-			res.status = response.status
-			
+			res.status = response.status			
 			responses << res
 		end 
 		return responses
